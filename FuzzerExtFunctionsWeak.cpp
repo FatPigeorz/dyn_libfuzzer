@@ -43,8 +43,13 @@ static void* GetLibHandle() {
   const char* libraryName = std::getenv("LLAMUTA_MUTATOR");
   if (libraryName == nullptr) {
       return nullptr;
-  } 
+  } else {
+    Printf("INFO: Loading library \"%s\".\n", libraryName);
+  }
   void* libHandle = dlopen(libraryName, RTLD_LAZY);
+  if (libHandle == nullptr) {
+    Printf("WARNING: Failed to load library \"%s\".\n", libraryName);
+  }
   return libHandle;
 }
 
@@ -63,7 +68,7 @@ ExternalFunctions::ExternalFunctions() {
   void* handle = GetLibHandle();
 #define EXT_FUNC(NAME, RETURN_TYPE, FUNC_SIG, WARN)                            \
   this->NAME = ::NAME;                                                         \
-  if (this->NAME == nullptr && handle != nullptr && !WARN)                                                   \
+  if (this->NAME == nullptr && handle != nullptr)                                                   \
     this->NAME = GetFnPtr<decltype(ExternalFunctions::NAME)>(handle, #NAME);     \
   CheckFnPtr(reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(::NAME)),    \
              #NAME, WARN);
