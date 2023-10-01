@@ -17,8 +17,6 @@
 
 #include "FuzzerExtFunctions.h"
 #include "FuzzerIO.h"
-#include <cstdlib>
-#include <dlfcn.h>
 
 extern "C" {
 // Declare these symbols as weak to allow them to be optionally defined.
@@ -38,40 +36,14 @@ static void CheckFnPtr(void *FnPtr, const char *FnName, bool WarnIfMissing) {
   }
 }
 
-static void* GetLibHandle() {
-  dlerror(); // Clear any previous errors.
-  const char* libraryName = std::getenv("LLAMUTA_MUTATOR");
-  if (libraryName == nullptr) {
-      return nullptr;
-  } else {
-    Printf("INFO: Loading library \"%s\".\n", libraryName);
-  }
-  void* libHandle = dlopen(libraryName, RTLD_LAZY);
-  if (libHandle == nullptr) {
-    Printf("WARNING: Failed to load library \"%s\".\n", libraryName);
-  }
-  return libHandle;
-}
-
-template <typename T>
-static T GetFnPtr(void* handle, const char *FnName) {
-  void* Fn = dlsym(handle, FnName);
-  if (Fn != nullptr) {
-    Printf("INFO: Found function \"%s\".\n", FnName);
-  } 
-  return reinterpret_cast<T>(Fn);
-}
-
 namespace fuzzer {
 
 ExternalFunctions::ExternalFunctions() {
-  void* handle = GetLibHandle();
 #define EXT_FUNC(NAME, RETURN_TYPE, FUNC_SIG, WARN)                            \
   this->NAME = ::NAME;                                                         \
-  if (this->NAME == nullptr && handle != nullptr)                                                   \
-    this->NAME = GetFnPtr<decltype(ExternalFunctions::NAME)>(handle, #NAME);     \
   CheckFnPtr(reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(::NAME)),    \
              #NAME, WARN);
+
 #include "FuzzerExtFunctions.def"
 
 #undef EXT_FUNC

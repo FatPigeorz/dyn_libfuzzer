@@ -60,7 +60,15 @@ static LONG CALLBACK ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
       if (HandlerOpt->HandleFpe)
         Fuzzer::StaticCrashSignalCallback();
       break;
-    // TODO: handle (Options.HandleXfsz)
+    // This is an undocumented exception code corresponding to a Visual C++
+    // Exception.
+    //
+    // See: https://devblogs.microsoft.com/oldnewthing/20100730-00/?p=13273
+    case 0xE06D7363:
+      if (HandlerOpt->HandleWinExcept)
+        Fuzzer::StaticCrashSignalCallback();
+      break;
+      // TODO: Handle (Options.HandleXfsz)
   }
   return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -127,7 +135,7 @@ void SetSignalHandler(const FuzzingOptions& Options) {
     }
 
   if (Options.HandleSegv || Options.HandleBus || Options.HandleIll ||
-      Options.HandleFpe)
+      Options.HandleFpe || Options.HandleWinExcept)
     SetUnhandledExceptionFilter(ExceptionHandler);
 
   if (Options.HandleAbrt)
@@ -196,7 +204,7 @@ const void *SearchMemory(const void *Data, size_t DataLen, const void *Patt,
 }
 
 std::string DisassembleCmd(const std::string &FileName) {
-  Vector<std::string> command_vector;
+  std::vector<std::string> command_vector;
   command_vector.push_back("dumpbin /summary > nul");
   if (ExecuteCommand(Command(command_vector)) == 0)
     return "dumpbin /disasm " + FileName;
@@ -214,6 +222,20 @@ void DiscardOutput(int Fd) {
     return;
   _dup2(_fileno(Temp), Fd);
   fclose(Temp);
+}
+
+size_t PageSize() {
+  static size_t PageSizeCached = []() -> size_t {
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return si.dwPageSize;
+  }();
+  return PageSizeCached;
+}
+
+void SetThreadName(std::thread &thread, const std::string &name) {
+  // TODO ?
+  // to UTF-8 then SetThreadDescription ?
 }
 
 } // namespace fuzzer
