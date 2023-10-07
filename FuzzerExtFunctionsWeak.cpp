@@ -17,6 +17,8 @@
 
 #include "FuzzerExtFunctions.h"
 #include "FuzzerIO.h"
+#include <cstdlib>
+#include <dlfcn.h>
 
 extern "C" {
 // Declare these symbols as weak to allow them to be optionally defined.
@@ -58,6 +60,7 @@ static T GetFnPtr(void* handle, const char *FnName) {
 namespace fuzzer {
 
 ExternalFunctions::ExternalFunctions() {
+  void* handle = GetLibHandle();
 #define EXT_FUNC(NAME, RETURN_TYPE, FUNC_SIG, WARN)                            \
   this->NAME = ::NAME;                                                         \
   if (this->NAME == nullptr && handle != nullptr && !WARN)                                                   \
