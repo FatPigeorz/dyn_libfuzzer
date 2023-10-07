@@ -36,11 +36,32 @@ static void CheckFnPtr(void *FnPtr, const char *FnName, bool WarnIfMissing) {
   }
 }
 
+static void* GetLibHandle() {
+  dlerror(); // Clear any previous errors.
+  const char* libraryName = std::getenv("LLAMUTA_MUTATOR");
+  if (libraryName == nullptr) {
+      return nullptr;
+  } 
+  void* libHandle = dlopen(libraryName, RTLD_LAZY);
+  return libHandle;
+}
+
+template <typename T>
+static T GetFnPtr(void* handle, const char *FnName) {
+  void* Fn = dlsym(handle, FnName);
+  if (Fn != nullptr) {
+    Printf("INFO: Found function \"%s\".\n", FnName);
+  } 
+  return reinterpret_cast<T>(Fn);
+}
+
 namespace fuzzer {
 
 ExternalFunctions::ExternalFunctions() {
 #define EXT_FUNC(NAME, RETURN_TYPE, FUNC_SIG, WARN)                            \
   this->NAME = ::NAME;                                                         \
+  if (this->NAME == nullptr && handle != nullptr && !WARN)                                                   \
+    this->NAME = GetFnPtr<decltype(ExternalFunctions::NAME)>(handle, #NAME);     \
   CheckFnPtr(reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(::NAME)),    \
              #NAME, WARN);
 
